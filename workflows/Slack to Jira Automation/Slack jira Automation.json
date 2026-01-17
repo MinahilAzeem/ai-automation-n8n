@@ -1,0 +1,193 @@
+{
+  "name": "Slack jira Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "trigger": [
+          "app_mention",
+          "any_event",
+          "message"
+        ],
+        "channelId": {
+          "__rl": true,
+          "value": "C0A8AH5STC3",
+          "mode": "list",
+          "cachedResultName": "project-issues"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.slackTrigger",
+      "typeVersion": 1,
+      "position": [
+        -896,
+        -320
+      ],
+      "id": "ba72c17d-0ae3-4478-9448-6b15ea911841",
+      "name": "Slack Trigger1",
+      "webhookId": "c6ff1e1c-e119-458b-bd60-ed1e5db7aa85",
+      "credentials": {
+        "slackApi": {
+          "id": "jItSp8Iw890mKMzw",
+          "name": "Slack account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.blocks[0].elements[0].elements[1].text }}",
+        "options": {
+          "systemMessage": "You are a Senior Software Architect and Product Requirements Engineer.\n\nYour responsibility is to take unstructured, ambiguous, or partially defined product input and convert it into a clear, precise, and implementation-ready JIRA ticket that developers can execute without further clarification.\n\nYou must:\n- Analyze the intent behind the request\n- Identify whether the request represents a Bug, Feature, Task, Improvement, or Security issue\n- Remove ambiguity and assumptions\n- Clarify scope boundaries\n- Rewrite requirements in clear, developer-friendly language\n- Ensure logical consistency across all sections\n- Avoid introducing features not implied by the input\n\nIMPORTANT RULES:\n- Respond ONLY in valid JSON\n- Do NOT include markdown\n- Do NOT include explanations, comments, or extra text\n- Do NOT include implementation code\n- Use concise but complete technical language\n- Assume the audience is a professional engineering team\n------------------------\nOUTPUT FORMAT (STRICT)\n------------------------\n\n{\n  \"issue_type\": \"\",\n  \"title\": \"\",\n  \"description\": \"\",\n  \"problem_statement\": \"\",\n  \"scope\": {\n    \"in_scope\": [],\n    \"out_of_scope\": []\n  },\n  \"functional_requirements\": [],\n  \"dependencies\": [],\n  \"assumptions\": [],\n  \"acceptance_criteria\": []\n}\n\n------------------------\nISSUE TYPE CLASSIFICATION RULES\n------------------------\n\nClassify the issue_type using these rules:\n\n- \"bug\" → Existing functionality is broken, incorrect, or not working as intended\n- \"feature\" → New functionality or capability is being introduced\n- \"improvement\" → Enhancement or optimization of existing functionality\n- \"task\" → Configuration, setup, refactoring, or operational work\n- \"security\" → Risks related to abuse, misuse, access control, data protection, or system stability\n\nChoose ONE best-fit type only.\n\n------------------------\nINPUT CONTEXT\n------------------------\n\nYou are given an existing draft JIRA-style description that may:\n- Contain redundancy\n- Contain unclear scope\n- Mix business and technical language\n- Include implicit assumptions\nYour task is to REWRITE and NORMALIZE it into a clean, architect-approved JIRA ticket.\n\n------------------------\nSOURCE CONTENT\n-----------------------\n\n------------------------\nQUALITY CHECK BEFORE RESPONDING\n------------------------\n\nBefore returning the JSON, internally verify that:\n- issue_type matches the actual intent of the request\n- The title is concise and action-oriented\n- The description clearly explains WHAT and WHY\n- Scope boundaries are unambiguous\n- Functional requirements are testable\n- Acceptance criteria are written in GIVEN / WHEN / THEN style\n- No contradictions exist between sections\n\nReturn ONLY the final JSON.\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -688,
+        -320
+      ],
+      "id": "84165a5b-4eb9-4348-aaeb-d0281c8df0f5",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -688,
+        -112
+      ],
+      "id": "17c27e44-7c2c-4f37-b5d8-74862e2c5680",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "4IhPmWriSWHNVCSy",
+          "name": "Google Gemini(PaLM) Api account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0A8AH5STC3",
+          "mode": "list",
+          "cachedResultName": "project-issues"
+        },
+        "text": "=Task created on Jira ID: {{ $json.id }} , Scrum number is : {{ $json.key }} and its URL is : {{ $json.self }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        -144,
+        -320
+      ],
+      "id": "477c6622-4dcb-492f-be63-69f461487a7d",
+      "name": "Send a message",
+      "webhookId": "3db9b7b8-121b-4c96-b988-e5610db41e19",
+      "credentials": {
+        "slackApi": {
+          "id": "jItSp8Iw890mKMzw",
+          "name": "Slack account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jiraVersion": "server",
+        "project": {
+          "__rl": true,
+          "value": "10000",
+          "mode": "list",
+          "cachedResultName": "TeamWork"
+        },
+        "issueType": {
+          "__rl": true,
+          "value": "10005",
+          "mode": "list",
+          "cachedResultName": "Bug"
+        },
+        "summary": "={{ $json.output.parseJson().title }}",
+        "additionalFields": {
+          "description": "=Issue Type: {{ $json.output.parseJson().issue_type}}\n\nFunctional Requirements:{{ $json.output.parseJson().functional_requirements }}\n\nAcceptance Creteria: {{ $json.output.parseJson().acceptance_criteria }}\n\nScope: {{ $json.output.parseJson().scope }}\n\nDescription: {{ $json.output.parseJson().description }}\n"
+        }
+      },
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        -352,
+        -320
+      ],
+      "id": "8797650b-82c7-441f-b34c-4c74db7153fb",
+      "name": "Create an issue",
+      "credentials": {
+        "jiraSoftwareServerApi": {
+          "id": "clTrL9GBRiEmdVAC",
+          "name": "Jira SW Cloud account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Slack Trigger1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Create an issue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create an issue": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "777f0b41-1d01-482c-baf1-bd46befe79a1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3c9794a52d31698f7103ce71ad2f1d16ea34a1b6acf82b3fae2fadfa83af7ec6"
+  },
+  "id": "T6jLNcRIphAZJYNJ",
+  "tags": []
+}
