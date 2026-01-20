@@ -1,0 +1,206 @@
+{
+  "name": "Email Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are an AI Email Assistant integrated with n8n.\n\nYou have access to exactly TWO tools:\n\n1) Google Contacts Tool  \n   - Purpose: Look up a person’s email address using their NAME.\n   - You must use this tool before sending any email.\n\n2) Gmail Tool  \n   - Purpose: Send emails.\n   - You must only use this tool AFTER a valid email address is found.\n\nIMPORTANT RULES:\n- You may send a MAXIMUM of TWO emails per request.\n- You MUST find the recipient’s email address using Google Contacts BEFORE sending.\n- NEVER guess or invent email addresses.\n- If an email address cannot be found, DO NOT send the email.\n- If more than two recipients are requested, stop and return an error.\n- Always follow this order:\n  1) Identify recipients by name\n  2) Look up email addresses using Google Contacts\n  3) Send emails using Gmail\n- Respond ONLY with structured JSON. No plain text.\n\nEXPECTED USER INPUT (via chat):\nExamples:\n- \"Send an email to Minahil about the meeting\"\n- \"Email Minahil and Soban regarding the project update\"\n\nYOUR TASK:\n1) Extract up to TWO recipient names\n2) Prepare contact lookup instructions\n3) Prepare email content\n4) Send emails ONLY after email addresses are found\n\nOUTPUT FORMAT (JSON ONLY):\n\n{\n  \"action\": \"send_email\",\n  \"recipients\": [\n    {\n      \"name\": \"\",\n      \"email\": \"\",\n      \"subject\": \"\",\n      \"body\": \"\"\n    }\n  ]\n}\n\nERROR FORMAT (JSON ONLY):\n\n{\n  \"action\": \"error\",\n  \"reason\": \"\"\n}\n\nEXAMPLE FLOW:\n\nUser input:\n\"Send email to Minahil and Soban about project update\"\n\nSteps:\n1) Identify names: Minahil, Soban\n2) Use Google Contacts Tool to find their email addresses\n3) If both emails are found, use Gmail Tool to send emails\n4) If any email is missing, return an error and do not send anything\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -464,
+        -208
+      ],
+      "id": "1a82db73-8a96-45d6-83e5-acccf9f5466c",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -576,
+        -16
+      ],
+      "id": "d2ff687c-3e18-4477-83a2-1b443b66d337",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "LUDSP15B0NbXuDFu",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -416,
+        0
+      ],
+      "id": "8fc983d2-c31f-42a8-89f9-f13383253ffa",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -656,
+        -208
+      ],
+      "id": "35b26ea9-b49b-4f26-ba3d-bbf490fea8f7",
+      "name": "When chat message received",
+      "webhookId": "05becc39-2f96-489a-9f53-e40752361fb8"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 1,
+        "fields": [
+          "names",
+          "emailAddresses"
+        ],
+        "useQuery": true,
+        "query": "={{ $json.name }}"
+      },
+      "type": "n8n-nodes-base.googleContacts",
+      "typeVersion": 1,
+      "position": [
+        64,
+        -208
+      ],
+      "id": "b55f550b-ad4d-44b1-b3fd-de23f4309e42",
+      "name": "Get many contacts",
+      "credentials": {
+        "googleContactsOAuth2Api": {
+          "id": "m8GxzaYziDWh3mSo",
+          "name": "Google Contacts account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.emailAddresses.undefined[0] }}",
+        "subject": "={{ $('Code in JavaScript').item.json.subject }}",
+        "message": "={{ $('Code in JavaScript').item.json.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        256,
+        -208
+      ],
+      "id": "254cecb9-4945-46ff-9756-1ffae74c696e",
+      "name": "Send a message",
+      "webhookId": "e67cd129-633d-4d05-aedd-a1a5099e1d08",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "AzkfMbVGiAgxkfIi",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Get raw AI output string\nconst raw = $json.output;\n\n// 2. Remove markdown ```json ``` wrappers\nconst clean = raw.replace(/```json|```/g, '').trim();\n\n// 3. Parse JSON safely\nconst data = JSON.parse(clean);\n\n// 4. Split recipients into separate items\nreturn data.recipients.map(name => ({\n  name,\n  subject: data.subject,\n  body: data.body || \"Please confirm your availability.\"\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -128,
+        -208
+      ],
+      "id": "5ae6cb61-ca34-4a81-87bd-df320d6bb002",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many contacts": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Get many contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "8332dcc9-6e3b-4051-abef-80291d4ee7c9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3c9794a52d31698f7103ce71ad2f1d16ea34a1b6acf82b3fae2fadfa83af7ec6"
+  },
+  "id": "fkzcqZxmqtGPhlfA",
+  "tags": []
+}
